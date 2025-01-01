@@ -34,7 +34,6 @@ class Database
         }
     }
 
-
     public function getUsers()
     {
         $result = $this->conn->query("SELECT id, username FROM users");
@@ -57,7 +56,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $type = htmlspecialchars($_POST['type']);
     $userId = intval($_POST['user_id']);
 
-    if (!empty($title) && !empty($description) && !empty($status) && !empty($type) && $userId > 0) {
+    if (!empty($title) && !empty($description) && !empty($status) && !empty($type)) {
+        if ($userId === 0) {
+            $userId = null; // Ne pas assigner de personne
+        }
+
         $db = new Database();
         $result = $db->insertTask($title, $description, $status, $type, $userId);
 
@@ -150,21 +153,21 @@ $db->closeConnection();
         <?php endif; ?>
         <form method="POST" action="">
             <input type="text" name="title" placeholder="Titre de la tâche" required>
-            <input type="text" name="description" placeholder="description de la tâche" required>
+            <input type="text" name="description" placeholder="Description de la tâche" required>
             <select name="status" required>
                 <option value="">Sélectionnez un statut</option>
-                <option value="in_progress">in_progress</option>
-                <option value="done">done</option>
-                <option value="todo">todo</option>
+                <option value="in_progress">En cours</option>
+                <option value="done">Terminée</option>
+                <option value="todo">À faire</option>
             </select>
             <select name="type" required>
                 <option value="">Sélectionnez un type</option>
                 <option value="Bug">Bug</option>
-                <option value="Feature">Feature</option>
-                <option value="simple">simple</option>
+                <option value="Feature">Fonctionnalité</option>
+                <option value="simple">Simple</option>
             </select>
             <select name="user_id" required>
-                <option value="">Assigné à</option>
+                <option value="0">N'assigner à personne</option>
                 <?php foreach ($users as $user) : ?>
                     <option value="<?php echo $user['id']; ?>"><?php echo $user['username']; ?></option>
                 <?php endforeach; ?>

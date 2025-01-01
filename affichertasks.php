@@ -211,35 +211,7 @@ if ($tasks) {
         <h1>Gestion des Tâches</h1>
         <button onclick="toggleForm()">Ajouter une nouvelle tâche</button>
 
-        <div class="form-container">
-            <?php if (!empty($message)) : ?>
-                <div class="message"><?php echo $message; ?></div>
-            <?php endif; ?>
-            <form method="POST" action="">
-                <input type="text" name="title" placeholder="Titre de la tâche" required>
-                <textarea name="description" placeholder="Description de la tâche" required></textarea>
-                <select name="status" required>
-                    <option value="">Sélectionnez un statut</option>
-                    <option value="in_progress">En cours</option>
-                    <option value="done">Terminé</option>
-                    <option value="todo">En attente</option>
-                </select>
-                <select name="type" required>
-                    <option value="">Sélectionnez un type</option>
-                    <option value="bug">Bug</option>
-                    <option value="feature">Feature</option>
-                    <option value="simple">simple</option>
-                </select>
-                <select name="assigned_to" required>
-                    <option value="">Assigné à</option>
-                    <?php foreach ($users as $user) : ?>
-                        <option value="<?php echo $user['id']; ?>"><?php echo $user['username']; ?></option>
-                    <?php endforeach; ?>
-                </select>
-                <button type="submit">Ajouter</button>
-            </form>
-        </div>
-
+       
         <div class="columns">
             <?php foreach ($tasksByStatus as $status => $tasks) : ?>
                 <?php if (!empty($tasks)) : ?>
@@ -247,12 +219,14 @@ if ($tasks) {
                         <h2><?php echo ucfirst($status); ?></h2> <!-- Le titre de la colonne affiche le statut -->
                         <?php foreach ($tasks as $task) : ?>
                             <div class="task">
-                                <strong><?php echo $task['title']; ?></strong>
+                                <!-- Le titre devient un lien vers la page d'édition -->
+                                <strong><a href="edit_task.php?id=<?php echo $task['id']; ?>" style="text-decoration: none; color: #333;"><?php echo $task['title']; ?></a></strong>
                                 <p><em><?php echo $task['description']; ?></em></p>
                                 <span>Assigné à : <?php echo $task['assigned_name']; ?></span><br>
-                                <span>Type : <?php echo ucfirst($task['type']); ?></span><br> <!-- Affichage du type -->
+                                <span>Type : <?php echo ucfirst($task['type']); ?></span><br>
                                 <span>Date de création : <?php echo date('d/m/Y H:i', strtotime($task['created_at'])); ?></span>
                             </div>
+
                         <?php endforeach; ?>
                     </div>
                 <?php endif; ?>
