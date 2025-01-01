@@ -1,160 +1,128 @@
 <?php
-
-require_once 'config.php';
-
-class User
-{
+// Classe pour gérer la base de données
+class Database {
+    private $host = "localhost";
+    private $username = "root";
+    private $password = "12345chadli"; // Modifiez selon votre configuration
+    private $dbname = "taskflow_db";
     private $conn;
-    private $table_name = "Users";
 
-    public $id;
-    public $username;
-    public $email;
+    // Constructeur pour établir la connexion
+    public function __construct() {
+        $this->conn = new mysqli($this->host, $this->username, $this->password, $this->dbname);
 
-    public function __construct($db)
-    {
-        $this->conn = $db;
+        if ($this->conn->connect_error) {
+            die("Erreur de connexion : " . $this->conn->connect_error);
+        }
     }
 
-    public function create()
-    {
-        $query = "INSERT INTO " . $this->table_name . " (username, email) VALUES (:username, :email)";
-        $stmt = $this->conn->prepare($query);
+    // Méthode pour exécuter une requête préparée (insertion d'utilisateur)
+    public function insertUser($username, $email) {
+        $stmt = $this->conn->prepare("INSERT INTO users (username, email) VALUES (?, ?)");
+        $stmt->bind_param("ss", $username, $email);
 
-        // Clean and sanitize input data
-        $this->username = htmlspecialchars(strip_tags($this->username));
-        $this->email = htmlspecialchars(strip_tags($this->email));
+        if ($stmt->execute()) {
+            return true;
+        } else {
+            return $stmt->error;
+        }
+    }
 
-        // Bind parameters
-        $stmt->bindParam(':username', $this->username);
-        $stmt->bindParam(':email', $this->email);
-
-        // Execute the query
-        return $stmt->execute();
+    // Fermer la connexion
+    public function closeConnection() {
+        $this->conn->close();
     }
 }
 
-// Initialize database connection
-$database = new Database();
-$db = $database->connect();
+// Initialisation des variables
+$message = "";
 
-$message = ""; // Initialize the message variable
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $username = $_POST['username'] ?? '';
-    $email = $_POST['email'] ?? '';
+// Gestion du formulaire
+if ($_SERVER["REQUEST_METHOD"] === "POST") {
+    $username = htmlspecialchars($_POST['username']);
+    $email = htmlspecialchars($_POST['email']);
 
     if (!empty($username) && !empty($email)) {
-        $user = new User($db);
-        $user->username = $username;
-        $user->email = $email;
+        $db = new Database(); // Création d'une instance de la classe Database
+        $result = $db->insertUser($username, $email);
 
-        if ($user->create()) {
-            $message = "<p style='color: green;'>Utilisateur ajouté avec succès !</p>";
+        if ($result === true) {
+            $message = "<p style='color: green;'>Inscription réussie ! Bienvenue, $username.</p>";
         } else {
-            $message = "<p style='color: red;'>Erreur : Impossible d'ajouter l'utilisateur. Vérifiez les doublons d'email.</p>";
+            $message = "<p style='color: red;'>Erreur : $result</p>";
         }
+
+        $db->closeConnection(); // Fermer la connexion
     } else {
         $message = "<p style='color: red;'>Veuillez remplir tous les champs.</p>";
     }
 }
 ?>
-<!DOCTYPE html>
-<html lang="fr">
 
+<!DOCTYPE html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ajouter un utilisateur</title>
+    <title>TaskFlow - Enregistrement</title>
     <style>
-        /* Style de base */
         body {
             font-family: Arial, sans-serif;
             margin: 0;
             padding: 0;
-            background-color: #f5f5f5;
-            color: #333;
-        }
-
-        /* Conteneur principal */
-        .container {
-            max-width: 500px;
-            margin: 50px auto;
-            background: #fff;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            padding: 20px;
-        }
-
-        /* Titre */
-        h1 {
-            font-size: 24px;
-            text-align: center;
-            color: #333;
-            margin-bottom: 20px;
-        }
-
-        /* Message de retour */
-        .message {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-
-        /* Formulaire */
-        form {
             display: flex;
-            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f4f4f9;
         }
-
-        /* Labels */
-        label {
-            font-weight: bold;
-            margin-bottom: 5px;
-            color: #555;
-        }
-
-        /* Champs de formulaire */
-        input[type="text"],
-        input[type="email"] {
-            padding: 10px;
-            font-size: 16px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            margin-bottom: 15px;
+        .form-container {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
             width: 100%;
-            box-sizing: border-box;
+            max-width: 400px;
         }
-
-        /* Bouton */
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #333;
+        }
+        input[type="text"], input[type="email"], button {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
         button {
-            background-color: #007BFF;
+            background-color: #28a745;
             color: #fff;
             font-size: 16px;
-            padding: 10px;
-            border: none;
-            border-radius: 4px;
             cursor: pointer;
-            transition: background-color 0.3s ease;
+            border: none;
         }
-
         button:hover {
-            background-color: #0056b3;
+            background-color: #218838;
+        }
+        .message {
+            text-align: center;
+            margin-top: 10px;
         }
     </style>
 </head>
-
 <body>
-    <h1>Ajouter un utilisateur</h1>
-    <?= $message ?>
-    <form action="" method="POST">
-        <label for="username">Nom d'utilisateur :</label>
-        <input type="text" id="username" name="username" required>
-        <br><br>
-        <label for="email">Email :</label>
-        <input type="email" id="email" name="email" required>
-        <br><br>
-        <button type="submit">Ajouter</button>
-    </form>
+    <div class="form-container">
+        <h1>TaskFlow</h1>
+        <?php if (!empty($message)) : ?>
+            <div class="message"><?php echo $message; ?></div>
+        <?php endif; ?>
+        <form method="POST" action="">
+            <input type="text" name="username" placeholder="Entrez votre nom" required>
+            <input type="email" name="email" placeholder="Entrez votre email" required>
+            <button type="submit">S'enregistrer</button>
+        </form>
+    </div>
 </body>
-
 </html>
