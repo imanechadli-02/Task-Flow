@@ -1,12 +1,12 @@
 <?php
-// Classe pour gérer la base de données
+// Classe de base pour gérer la base de données
 class Database
 {
     private $host = "localhost";
     private $username = "root";
-    private $password = "12345chadli"; // Modifiez selon votre configuration
+    private $password = "12345chadli";
     private $dbname = "taskflow_db";
-    private $conn;
+    protected $conn; // Connexion protégée pour être utilisée dans les classes enfants
 
     public function __construct()
     {
@@ -17,10 +17,108 @@ class Database
         }
     }
 
-    public function insertTask($title, $status, $type, $assignedTo, $description)
+    public function closeConnection()
+    {
+        $this->conn->close();
+    }
+}
+
+// Classe User pour gérer les utilisateurs
+class User extends Database
+{
+    private $id;
+    private $username;
+
+    public function setId($id)
+    {
+        $this->id = intval($id);
+    }
+
+    public function getId()
+    {
+        return $this->id;
+    }
+
+    public function setUsername($username)
+    {
+        $this->username = htmlspecialchars($username);
+    }
+
+    public function getUsername()
+    {
+        return $this->username;
+    }
+
+    public function getAllUsers()
+    {
+        $result = $this->conn->query("SELECT id, username FROM users");
+        return $result->fetch_all(MYSQLI_ASSOC);
+    }
+}
+
+// Classe Task pour gérer les tâches
+class Task extends Database
+{
+    private $title;
+    private $status;
+    private $type;
+    private $assignedTo;
+    private $description;
+
+    public function setTitle($title)
+    {
+        $this->title = htmlspecialchars($title);
+    }
+
+    public function getTitle()
+    {
+        return $this->title;
+    }
+
+    public function setStatus($status)
+    {
+        $this->status = htmlspecialchars($status);
+    }
+
+    public function getStatus()
+    {
+        return $this->status;
+    }
+
+    public function setType($type)
+    {
+        $this->type = htmlspecialchars($type);
+    }
+
+    public function getType()
+    {
+        return $this->type;
+    }
+
+    public function setAssignedTo($assignedTo)
+    {
+        $this->assignedTo = intval($assignedTo);
+    }
+
+    public function getAssignedTo()
+    {
+        return $this->assignedTo;
+    }
+
+    public function setDescription($description)
+    {
+        $this->description = htmlspecialchars($description);
+    }
+
+    public function getDescription()
+    {
+        return $this->description;
+    }
+
+    public function insert()
     {
         $stmt = $this->conn->prepare("INSERT INTO tasks (title, status, type, assigned_to, description, created_at) VALUES (?, ?, ?, ?, ?, NOW())");
-        $stmt->bind_param("sssis", $title, $status, $type, $assignedTo, $description);
+        $stmt->bind_param("sssis", $this->title, $this->status, $this->type, $this->assignedTo, $this->description);
 
         if ($stmt->execute()) {
             return true;
@@ -29,23 +127,12 @@ class Database
         }
     }
 
-    public function getUsers()
-    {
-        $result = $this->conn->query("SELECT id, username FROM users");
-        return $result->fetch_all(MYSQLI_ASSOC);
-    }
-
-    public function getTasksWithUsers()
+    public function getAllTasksWithUsers()
     {
         $sql = "SELECT tasks.*, users.username AS assigned_name FROM tasks
                 LEFT JOIN users ON tasks.assigned_to = users.id";
         $result = $this->conn->query($sql);
         return $result->fetch_all(MYSQLI_ASSOC);
-    }
-
-    public function closeConnection()
-    {
-        $this->conn->close();
     }
 }
 
@@ -58,54 +145,44 @@ function getStatusLabel($status)
         'done' => 'Terminé'
     ];
 
-    return isset($statusLabels[$status]) ? $statusLabels[$status] : $status;
+    return $statusLabels[$status] ?? $status;
 }
 
 // Gestion des requêtes
 $message = "";
-
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
-    $title = htmlspecialchars($_POST['title']);
-    $description = htmlspecialchars($_POST['description']);
-    $status = htmlspecialchars($_POST['status']);
-    $type = htmlspecialchars($_POST['type']);
-    $assignedTo = isset($_POST['assigned_to']) ? intval($_POST['assigned_to']) : NULL;  // Default to NULL if not set
+    $task = new Task();
+    $task->setTitle($_POST['title']);
+    $task->setDescription($_POST['description']);
+    $task->setStatus($_POST['status']);
+    $task->setType($_POST['type']);
+    $task->setAssignedTo($_POST['assigned_to']);
 
-    if (!empty($title) && !empty($description) && !empty($status) && !empty($type) && $assignedTo !== NULL) {
-        $db = new Database();
-        $result = $db->insertTask($title, $status, $type, $assignedTo, $description);
+    if ($task->getTitle() && $task->getDescription() && $task->getStatus() && $task->getType() && $task->getAssignedTo()) {
+        $result = $task->insert();
 
-        if ($result === true) {
-            $message = "<p style='color: green;'>Tâche ajoutée avec succès !</p>";
-        } else {
-            $message = "<p style='color: red;'>Erreur : $result</p>";
-        }
-
-        $db->closeConnection();
+        $message = $result === true
+            ? "<p style='color: green;'>Tâche ajoutée avec succès !</p>"
+            : "<p style='color: red;'>Erreur : $result</p>";
     } else {
         $message = "<p style='color: red;'>Tous les champs sont requis.</p>";
     }
+
+    $task->closeConnection();
 }
 
-// Charger les utilisateurs et les tâches avec les noms
-$db = new Database();
-$users = $db->getUsers();
-$tasks = $db->getTasksWithUsers();  // Récupérer les tâches avec les noms des utilisateurs
-$db->closeConnection();
+// Charger les utilisateurs et les tâches
+$user = new User();
+$users = $user->getAllUsers();
 
-// Initialisation des tâches par statut
-$tasksByStatus = [
-    "todo" => [],
-    "in_progress" => [],
-    "done" => []
-];
+$task = new Task();
+$tasks = $task->getAllTasksWithUsers();
+$task->closeConnection();
 
-// Vérifier si des tâches existent et les organiser par statut
-if ($tasks) {
-    foreach ($tasks as $task) {
-        $statusLabel = getStatusLabel($task['status']);
-        $tasksByStatus[$task['status']][] = $task;
-    }
+// Organiser les tâches par statut
+$tasksByStatus = ["todo" => [], "in_progress" => [], "done" => []];
+foreach ($tasks as $task) {
+    $tasksByStatus[$task['status']][] = $task;
 }
 ?>
 
@@ -198,41 +275,36 @@ if ($tasks) {
             margin-top: 10px;
         }
     </style>
-    <script>
-        function toggleForm() {
-            const form = document.querySelector('.form-container');
-            form.style.display = form.style.display === 'block' ? 'none' : 'block';
-        }
-    </script>
 </head>
 
 <body>
     <div class="container">
         <h1>Gestion des Tâches</h1>
-        <button onclick="toggleForm()">Ajouter une nouvelle tâche</button>
-
-       
+        <?php if ($message) echo "<div>$message</div>"; ?>
+        <a href="addtask.php"><button>Ajouter une nouvelle tâche</button></a>
         <div class="columns">
             <?php foreach ($tasksByStatus as $status => $tasks) : ?>
-                <?php if (!empty($tasks)) : ?>
-                    <div class="column">
-                        <h2><?php echo ucfirst($status); ?></h2> <!-- Le titre de la colonne affiche le statut -->
-                        <?php foreach ($tasks as $task) : ?>
-                            <div class="task">
-                                <!-- Le titre devient un lien vers la page d'édition -->
-                                <strong><a href="edit_task.php?id=<?php echo $task['id']; ?>" style="text-decoration: none; color: #333;"><?php echo $task['title']; ?></a></strong>
-                                <p><em><?php echo $task['description']; ?></em></p>
-                                <span>Assigné à : <?php echo $task['assigned_name']; ?></span><br>
-                                <span>Type : <?php echo ucfirst($task['type']); ?></span><br>
-                                <span>Date de création : <?php echo date('d/m/Y H:i', strtotime($task['created_at'])); ?></span>
-                            </div>
-
-                        <?php endforeach; ?>
-                    </div>
-                <?php endif; ?>
+                <div class="column">
+                    <h2><?php echo ucfirst($status); ?></h2>
+                    <?php foreach ($tasks as $task) : ?>
+                        <div class="task">
+                            <strong>
+                                <a href="edit_task.php?id=<?php echo $task['id']; ?>" style="text-decoration: none; color: #007bff;">
+                                    <?php echo $task['title']; ?>
+                                </a>
+                            </strong>
+                            <p><?php echo $task['description']; ?></p>
+                            <span>Assigné à : <?php echo $task['assigned_name']; ?></span>
+                            <br>
+                            <!-- Ajouter le type de la tâche ici -->
+                            <span>Type : <?php echo ucfirst($task['type']); ?></span>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
             <?php endforeach; ?>
         </div>
     </div>
+    
 </body>
 
 </html>

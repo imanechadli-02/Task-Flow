@@ -1,6 +1,7 @@
 <?php
 // Classe pour gérer la base de données
-class Database {
+class Database
+{
     private $host = "localhost";
     private $username = "root";
     private $password = "12345chadli"; // Modifiez selon votre configuration
@@ -8,7 +9,8 @@ class Database {
     private $conn;
 
     // Constructeur pour établir la connexion
-    public function __construct() {
+    public function __construct()
+    {
         $this->conn = new mysqli($this->host, $this->username, $this->password, $this->dbname);
 
         if ($this->conn->connect_error) {
@@ -16,9 +18,16 @@ class Database {
         }
     }
 
-    // Méthode pour exécuter une requête préparée (insertion d'utilisateur)
-    public function insertUser($username, $email) {
+    // Méthode pour insérer un utilisateur dans la base de données
+    public function insertUser(User $user)
+    {
         $stmt = $this->conn->prepare("INSERT INTO users (username, email) VALUES (?, ?)");
+        if ($stmt === false) {
+            return $this->conn->error;
+        }
+
+        $username = $user->getUsername();
+        $email = $user->getEmail();
         $stmt->bind_param("ss", $username, $email);
 
         if ($stmt->execute()) {
@@ -28,33 +37,73 @@ class Database {
         }
     }
 
-    // Fermer la connexion
-    public function closeConnection() {
+    // Méthode pour fermer la connexion
+    public function closeConnection()
+    {
         $this->conn->close();
     }
 }
 
-// Initialisation des variables
-$message = "";
+// Classe User pour gérer les utilisateurs
+class User
+{
+    private $username;
+    private $email;
+
+    // Setter pour le nom d'utilisateur
+    public function setUsername($username)
+    {
+        if (!empty($username)) {
+            $this->username = htmlspecialchars($username);
+        } else {
+            throw new Exception("Le nom d'utilisateur ne peut pas être vide.");
+        }
+    }
+
+    // Getter pour le nom d'utilisateur
+    public function getUsername()
+    {
+        return $this->username;
+    }
+
+    // Setter pour l'email
+    public function setEmail($email)
+    {
+        if (filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $this->email = htmlspecialchars($email);
+        } else {
+            throw new Exception("Adresse e-mail invalide.");
+        }
+    }
+
+    // Getter pour l'email
+    public function getEmail()
+    {
+        return $this->email;
+    }
+}
 
 // Gestion du formulaire
-if ($_SERVER["REQUEST_METHOD"] === "POST") {
-    $username = htmlspecialchars($_POST['username']);
-    $email = htmlspecialchars($_POST['email']);
+$message = "";
 
-    if (!empty($username) && !empty($email)) {
-        $db = new Database(); // Création d'une instance de la classe Database
-        $result = $db->insertUser($username, $email);
+if ($_SERVER["REQUEST_METHOD"] === "POST") {
+    try {
+        $user = new User();
+        $user->setUsername($_POST['username']);
+        $user->setEmail($_POST['email']);
+
+        $db = new Database(); // Connexion à la base de données
+        $result = $db->insertUser($user);
 
         if ($result === true) {
-            $message = "<p style='color: green;'>Inscription réussie ! Bienvenue, $username.</p>";
+            $message = "<p style='color: green;'>Inscription réussie ! Bienvenue, " . $user->getUsername() . ".</p>";
         } else {
             $message = "<p style='color: red;'>Erreur : $result</p>";
         }
 
         $db->closeConnection(); // Fermer la connexion
-    } else {
-        $message = "<p style='color: red;'>Veuillez remplir tous les champs.</p>";
+    } catch (Exception $e) {
+        $message = "<p style='color: red;'>" . $e->getMessage() . "</p>";
     }
 }
 ?>

@@ -1,12 +1,12 @@
 <?php
-// Classe pour gérer la base de données
+// Classe de base pour la connexion à la base de données
 class Database
 {
     private $host = "localhost";
     private $username = "root";
-    private $password = "12345chadli"; // Modifiez selon votre configuration
+    private $password = "12345chadli";
     private $dbname = "taskflow_db";
-    private $conn;
+    protected $conn;
 
     public function __construct()
     {
@@ -17,27 +17,9 @@ class Database
         }
     }
 
-    public function insertTask($title, $description, $status, $type, $userId)
+    public function getConnection()
     {
-        $stmt = $this->conn->prepare("INSERT INTO tasks (title, description, status, type, assigned_to) VALUES (?, ?, ?, ?, ?)");
-
-        if ($stmt === false) {
-            die('Erreur de préparation de la requête : ' . $this->conn->error);
-        }
-
-        $stmt->bind_param("ssssi", $title, $description, $status, $type, $userId);
-
-        if ($stmt->execute()) {
-            return true;
-        } else {
-            return $stmt->error;
-        }
-    }
-
-    public function getUsers()
-    {
-        $result = $this->conn->query("SELECT id, username FROM users");
-        return $result->fetch_all(MYSQLI_ASSOC);
+        return $this->conn;
     }
 
     public function closeConnection()
@@ -46,40 +28,147 @@ class Database
     }
 }
 
-// Gestion des requêtes
-$message = "";
+// Classe Task avec encapsulation
+class Task
+{
+    private $title;
+    private $description;
+    private $status;
+    private $type;
+    private $assignedTo;
 
-if ($_SERVER["REQUEST_METHOD"] === "POST") {
-    $title = htmlspecialchars($_POST['title']);
-    $description = htmlspecialchars($_POST['description']); // Ensure you capture the description
-    $status = htmlspecialchars($_POST['status']);
-    $type = htmlspecialchars($_POST['type']);
-    $userId = intval($_POST['user_id']);
+    public function __construct($title, $description, $status, $type, $assignedTo)
+    {
+        $this->setTitle($title);
+        $this->setDescription($description);
+        $this->setStatus($status);
+        $this->setType($type);
+        $this->setAssignedTo($assignedTo);
+    }
 
-    if (!empty($title) && !empty($description) && !empty($status) && !empty($type)) {
-        if ($userId === 0) {
-            $userId = null; // Ne pas assigner de personne
+    // Getters et setters
+    public function getTitle()
+    {
+        return $this->title;
+    }
+
+    public function setTitle($title)
+    {
+        if (empty($title)) {
+            throw new Exception("Le titre est obligatoire.");
+        }
+        $this->title = htmlspecialchars($title);
+    }
+
+    public function getDescription()
+    {
+        return $this->description;
+    }
+
+    public function setDescription($description)
+    {
+        if (empty($description)) {
+            throw new Exception("La description est obligatoire.");
+        }
+        $this->description = htmlspecialchars($description);
+    }
+
+    public function getStatus()
+    {
+        return $this->status;
+    }
+
+    public function setStatus($status)
+    {
+        $validStatuses = ["in_progress", "done", "todo"];
+        if (!in_array($status, $validStatuses)) {
+            throw new Exception("Statut invalide.");
+        }
+        $this->status = $status;
+    }
+
+    public function getType()
+    {
+        return $this->type;
+    }
+
+    public function setType($type)
+    {
+        $validTypes = ["Bug", "Feature", "Simple"];
+        if (!in_array($type, $validTypes)) {
+            throw new Exception("Type invalide.");
+        }
+        $this->type = $type;
+    }
+
+    public function getAssignedTo()
+    {
+        return $this->assignedTo;
+    }
+
+    public function setAssignedTo($assignedTo)
+    {
+        $this->assignedTo = $assignedTo;
+    }
+
+    // Méthode pour insérer une tâche dans la base de données
+    public function save(Database $db)
+    {
+        $conn = $db->getConnection();
+        $stmt = $conn->prepare("INSERT INTO tasks (title, description, status, type, assigned_to) VALUES (?, ?, ?, ?, ?)");
+
+        if ($stmt === false) {
+            throw new Exception('Erreur de préparation de la requête : ' . $conn->error);
         }
 
-        $db = new Database();
-        $result = $db->insertTask($title, $description, $status, $type, $userId);
-
-        if ($result === true) {
-            $message = "<p style='color: green;'>Tâche ajoutée avec succès !</p>";
-        } else {
-            $message = "<p style='color: red;'>Erreur : $result</p>";
+        $stmt->bind_param("ssssi", $this->title, $this->description, $this->status, $this->type, $this->assignedTo);
+        if (!$stmt->execute()) {
+            throw new Exception("Erreur lors de l'insertion : " . $stmt->error);
         }
 
-        $db->closeConnection();
-    } else {
-        $message = "<p style='color: red;'>Tous les champs sont requis.</p>";
+        $stmt->close();
     }
 }
 
+// Classe User pour gérer les utilisateurs
+class UserManager extends Database
+{
+    public function getUsers()
+    {
+        $result = $this->conn->query("SELECT id, username FROM users");
+        return $result->fetch_all(MYSQLI_ASSOC);
+    }
+}
+
+// Gestion des requêtes
+$message = "";
+try {
+    if ($_SERVER["REQUEST_METHOD"] === "POST") {
+        $title = $_POST['title'];
+        $description = $_POST['description'];
+        $status = $_POST['status'];
+        $type = $_POST['type'];
+        $userId = intval($_POST['user_id']);
+
+        if ($userId === 0) {
+            $userId = null; // Aucun assigné
+        }
+
+        $db = new Database();
+        $task = new Task($title, $description, $status, $type, $userId);
+        $task->save($db);
+        $db->closeConnection();
+
+        $message = "<p style='color: green;'>Tâche ajoutée avec succès !</p>";
+    }
+} catch (Exception $e) {
+    $message = "<p style='color: red;'>Erreur : " . $e->getMessage() . "</p>";
+}
+
 // Charger les utilisateurs pour le champ "Assigné à"
-$db = new Database();
-$users = $db->getUsers();
-$db->closeConnection();
+$userManager = new UserManager();
+$users = $userManager->getUsers();
+$userManager->closeConnection();
 ?>
 
 <!DOCTYPE html>
@@ -90,6 +179,7 @@ $db->closeConnection();
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TaskFlow - Ajouter une tâche</title>
     <style>
+        /* Styles */
         body {
             font-family: Arial, sans-serif;
             margin: 0;
@@ -164,7 +254,7 @@ $db->closeConnection();
                 <option value="">Sélectionnez un type</option>
                 <option value="Bug">Bug</option>
                 <option value="Feature">Fonctionnalité</option>
-                <option value="simple">Simple</option>
+                <option value="Simple">Simple</option>
             </select>
             <select name="user_id" required>
                 <option value="0">N'assigner à personne</option>

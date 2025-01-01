@@ -1,12 +1,12 @@
 <?php
-// edit_task.php
+// Classe de base pour la connexion à la base de données
 class Database
 {
     private $host = "localhost";
     private $username = "root";
-    private $password = "12345chadli"; // Modifiez selon votre configuration
+    private $password = "12345chadli";
     private $dbname = "taskflow_db";
-    private $conn;
+    protected $conn; // Connexion protégée pour être utilisée dans les classes enfants
 
     public function __construct()
     {
@@ -17,102 +17,171 @@ class Database
         }
     }
 
-    public function insertTask($title, $status, $type, $assignedTo, $description)
-    {
-        $stmt = $this->conn->prepare("INSERT INTO tasks (title, status, type, assigned_to, description, created_at) VALUES (?, ?, ?, ?, ?, NOW())");
-        $stmt->bind_param("sssis", $title, $status, $type, $assignedTo, $description);
-
-        if ($stmt->execute()) {
-            return true;
-        } else {
-            return $stmt->error;
-        }
-    }
-
-    public function getUsers()
-    {
-        $result = $this->conn->query("SELECT id, username FROM users");
-        return $result->fetch_all(MYSQLI_ASSOC);
-    }
-
-    public function getTasksWithUsers()
-    {
-        $sql = "SELECT tasks.*, users.username AS assigned_name FROM tasks
-                LEFT JOIN users ON tasks.assigned_to = users.id";
-        $result = $this->conn->query($sql);
-        return $result->fetch_all(MYSQLI_ASSOC);
-    }
-
-    // Récupérer une tâche par ID
-    public function getTaskById($taskId)
-    {
-        $stmt = $this->conn->prepare("SELECT tasks.*, users.username AS assigned_name FROM tasks 
-                                      LEFT JOIN users ON tasks.assigned_to = users.id WHERE tasks.id = ?");
-        $stmt->bind_param("i", $taskId);
-        $stmt->execute();
-        $result = $stmt->get_result();
-
-        return $result->fetch_assoc();
-    }
-
-    // Mettre à jour une tâche
-    public function updateTask($taskId, $title, $status, $type, $assignedTo, $description)
-    {
-        $stmt = $this->conn->prepare("UPDATE tasks SET title = ?, status = ?, type = ?, assigned_to = ?, description = ? WHERE id = ?");
-        $stmt->bind_param("sssssi", $title, $status, $type, $assignedTo, $description, $taskId);
-
-        if ($stmt->execute()) {
-            return true;
-        } else {
-            return $stmt->error;
-        }
-    }
-
     public function closeConnection()
     {
         $this->conn->close();
     }
 }
 
-// Vérifiez si l'ID de la tâche est passé dans l'URL
+// Classe Task pour gérer les tâches
+class Task extends Database
+{
+    private $id;
+    private $title;
+    private $status;
+    private $type;
+    private $assignedTo;
+    private $description;
+
+    // Setter and Getter methods for each property
+
+    public function setId($id)
+    {
+        $this->id = $id;
+    }
+
+    public function getId()
+    {
+        return $this->id;
+    }
+
+    public function setTitle($title)
+    {
+        $this->title = $title;
+    }
+
+    public function getTitle()
+    {
+        return $this->title;
+    }
+
+    public function setStatus($status)
+    {
+        $this->status = $status;
+    }
+
+    public function getStatus()
+    {
+        return $this->status;
+    }
+
+    public function setType($type)
+    {
+        $this->type = $type;
+    }
+
+    public function getType()
+    {
+        return $this->type;
+    }
+
+    public function setAssignedTo($assignedTo)
+    {
+        $this->assignedTo = $assignedTo;
+    }
+
+    public function getAssignedTo()
+    {
+        return $this->assignedTo;
+    }
+
+    public function setDescription($description)
+    {
+        $this->description = $description;
+    }
+
+    public function getDescription()
+    {
+        return $this->description;
+    }
+
+    public function fetchTaskById($id)
+    {
+        $this->setId($id);
+        $stmt = $this->conn->prepare("SELECT tasks.*, users.username AS assigned_name FROM tasks 
+                                      LEFT JOIN users ON tasks.assigned_to = users.id WHERE tasks.id = ?");
+        $stmt->bind_param("i", $this->id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        return $result->fetch_assoc();
+    }
+
+    public function updateTask()
+    {
+        $stmt = $this->conn->prepare("UPDATE tasks SET title = ?, status = ?, type = ?, assigned_to = ?, description = ? WHERE id = ?");
+        $stmt->bind_param("sssisi", $this->title, $this->status, $this->type, $this->assignedTo, $this->description, $this->id);
+        return $stmt->execute();
+    }
+
+    public function deleteTask()
+    {
+        $stmt = $this->conn->prepare("DELETE FROM tasks WHERE id = ?");
+        $stmt->bind_param("i", $this->id);
+        return $stmt->execute();
+    }
+}
+
+// Classe User pour gérer les utilisateurs
+class User extends Database
+{
+    public function fetchAllUsers()
+    {
+        $result = $this->conn->query("SELECT id, username FROM users");
+        return $result->fetch_all(MYSQLI_ASSOC);
+    }
+}
+
+// Gestion du formulaire et affichage
 if (isset($_GET['id'])) {
-    $taskId = intval($_GET['id']); // Récupérer l'ID de la tâche à partir de l'URL
+    $taskId = intval($_GET['id']);
+    $taskManager = new Task();
+    $userManager = new User();
 
-    // Connexion à la base de données et récupération des détails de la tâche
-    $db = new Database();
-    $task = $db->getTaskById($taskId);  // Méthode à créer dans la classe Database pour récupérer une tâche par ID
-    $users = $db->getUsers(); // Récupérer tous les utilisateurs
+    // Récupération de la tâche et des utilisateurs
+    $taskData = $taskManager->fetchTaskById($taskId);
+    $users = $userManager->fetchAllUsers();
 
-    if (!$task) {
+    if (!$taskData) {
         die("Tâche non trouvée");
     }
 
-    // Si le formulaire est soumis, on met à jour la tâche
-    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        $title = htmlspecialchars($_POST['title']);
-        $description = htmlspecialchars($_POST['description']);
-        $status = htmlspecialchars($_POST['status']);
-        $type = htmlspecialchars($_POST['type']);
-        $assignedTo = isset($_POST['assigned_to']) ? intval($_POST['assigned_to']) : NULL;
+    // Pré-remplir les données dans l'objet Task
+    $taskManager->setId($taskData['id']);
+    $taskManager->setTitle($taskData['title']);
+    $taskManager->setStatus($taskData['status']);
+    $taskManager->setType($taskData['type']);
+    $taskManager->setAssignedTo($taskData['assigned_to']);
+    $taskManager->setDescription($taskData['description']);
 
-        if (!empty($title) && !empty($description) && !empty($status) && !empty($type) && $assignedTo !== NULL) {
-            $result = $db->updateTask($taskId, $title, $status, $type, $assignedTo, $description);
+    // Si le formulaire est soumis pour mise à jour
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_task'])) {
+        $taskManager->setTitle($_POST['title']);
+        $taskManager->setDescription($_POST['description']);
+        $taskManager->setStatus($_POST['status']);
+        $taskManager->setType($_POST['type']);
+        $taskManager->setAssignedTo($_POST['assigned_to']);
 
-            if ($result === true) {
-                // Message de succès avec alerte JavaScript
-                echo "<script>
-                        alert('Tâche mise à jour avec succès !');
-                        window.location.href = 'affichertasks.php'; // Remplacez 'tasks_list.php' par votre page d'affichage des tâches
-                      </script>";
-            } else {
-                echo "<p style='color: red;'>Erreur : $result</p>";
-            }
+        if ($taskManager->updateTask()) {
+            echo "<script>
+                    alert('Tâche mise à jour avec succès !');
+                    window.location.href = 'affichertasks.php';
+                  </script>";
         } else {
-            echo "<p style='color: red;'>Tous les champs sont requis.</p>";
+            echo "<p style='color: red;'>Erreur lors de la mise à jour de la tâche.</p>";
         }
     }
 
-    $db->closeConnection();
+    // Si le formulaire est soumis pour suppression
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_task'])) {
+        if ($taskManager->deleteTask()) {
+            echo "<script>
+                    alert('Tâche supprimée avec succès !');
+                    window.location.href = 'affichertasks.php';
+                  </script>";
+        } else {
+            echo "<p style='color: red;'>Erreur lors de la suppression de la tâche.</p>";
+        }
+    }
 } else {
     die("ID de tâche manquant.");
 }
@@ -126,7 +195,7 @@ if (isset($_GET['id'])) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Éditer la Tâche</title>
     <style>
-        body {
+        <style>body {
             font-family: Arial, sans-serif;
             background-color: #f4f4f4;
             margin: 0;
@@ -215,25 +284,26 @@ if (isset($_GET['id'])) {
         <h1>Éditer la Tâche</h1>
 
         <form method="POST" action="">
-            <input type="text" name="title" value="<?php echo $task['title']; ?>" placeholder="Titre de la tâche" required>
-            <textarea name="description" placeholder="Description de la tâche" required><?php echo $task['description']; ?></textarea>
+            <input type="text" name="title" value="<?php echo $taskManager->getTitle(); ?>" placeholder="Titre de la tâche" required>
+            <textarea name="description" placeholder="Description de la tâche" required><?php echo $taskManager->getDescription(); ?></textarea>
             <select name="status" required>
-                <option value="todo" <?php echo $task['status'] === 'todo' ? 'selected' : ''; ?>>En attente</option>
-                <option value="in_progress" <?php echo $task['status'] === 'in_progress' ? 'selected' : ''; ?>>En cours</option>
-                <option value="done" <?php echo $task['status'] === 'done' ? 'selected' : ''; ?>>Terminé</option>
+                <option value="todo" <?php echo $taskManager->getStatus() === 'todo' ? 'selected' : ''; ?>>En attente</option>
+                <option value="in_progress" <?php echo $taskManager->getStatus() === 'in_progress' ? 'selected' : ''; ?>>En cours</option>
+                <option value="done" <?php echo $taskManager->getStatus() === 'done' ? 'selected' : ''; ?>>Terminé</option>
             </select>
             <select name="type" required>
-                <option value="bug" <?php echo $task['type'] === 'bug' ? 'selected' : ''; ?>>Bug</option>
-                <option value="feature" <?php echo $task['type'] === 'feature' ? 'selected' : ''; ?>>Feature</option>
-                <option value="simple" <?php echo $task['type'] === 'simple' ? 'selected' : ''; ?>>Simple</option>
+                <option value="bug" <?php echo $taskManager->getType() === 'bug' ? 'selected' : ''; ?>>Bug</option>
+                <option value="feature" <?php echo $taskManager->getType() === 'feature' ? 'selected' : ''; ?>>Feature</option>
+                <option value="simple" <?php echo $taskManager->getType() === 'simple' ? 'selected' : ''; ?>>Simple</option>
             </select>
             <select name="assigned_to" required>
                 <option value="">Assigné à</option>
                 <?php foreach ($users as $user) : ?>
-                    <option value="<?php echo $user['id']; ?>" <?php echo $task['assigned_to'] == $user['id'] ? 'selected' : ''; ?>><?php echo $user['username']; ?></option>
+                    <option value="<?php echo $user['id']; ?>" <?php echo $taskManager->getAssignedTo() == $user['id'] ? 'selected' : ''; ?>><?php echo $user['username']; ?></option>
                 <?php endforeach; ?>
             </select>
-            <button type="submit">Mettre à jour</button>
+            <button type="submit" name="update_task">Mettre à jour</button>
+            <button type="submit" name="delete_task" style="background-color: red;">Supprimer</button>
         </form>
     </div>
 </body>
