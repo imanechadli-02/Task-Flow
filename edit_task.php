@@ -1,12 +1,12 @@
 <?php
-// Classe de base pour la connexion à la base de données
+
 class Database
 {
     private $host = "localhost";
     private $username = "root";
     private $password = "12345chadli";
     private $dbname = "taskflow_db";
-    protected $conn; // Connexion protégée pour être utilisée dans les classes enfants
+    protected $conn; 
 
     public function __construct()
     {
@@ -23,7 +23,7 @@ class Database
     }
 }
 
-// Classe Task pour gérer les tâches
+
 class Task extends Database
 {
     private $id;
@@ -33,7 +33,7 @@ class Task extends Database
     private $assignedTo;
     private $description;
 
-    // Setter and Getter methods for each property
+   
 
     public function setId($id)
     {
@@ -121,7 +121,6 @@ class Task extends Database
     }
 }
 
-// Classe User pour gérer les utilisateurs
 class User extends Database
 {
     public function fetchAllUsers()
@@ -131,13 +130,11 @@ class User extends Database
     }
 }
 
-// Gestion du formulaire et affichage
 if (isset($_GET['id'])) {
     $taskId = intval($_GET['id']);
     $taskManager = new Task();
     $userManager = new User();
 
-    // Récupération de la tâche et des utilisateurs
     $taskData = $taskManager->fetchTaskById($taskId);
     $users = $userManager->fetchAllUsers();
 
@@ -145,7 +142,6 @@ if (isset($_GET['id'])) {
         die("Tâche non trouvée");
     }
 
-    // Pré-remplir les données dans l'objet Task
     $taskManager->setId($taskData['id']);
     $taskManager->setTitle($taskData['title']);
     $taskManager->setStatus($taskData['status']);
@@ -153,7 +149,6 @@ if (isset($_GET['id'])) {
     $taskManager->setAssignedTo($taskData['assigned_to']);
     $taskManager->setDescription($taskData['description']);
 
-    // Si le formulaire est soumis pour mise à jour
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_task'])) {
         $taskManager->setTitle($_POST['title']);
         $taskManager->setDescription($_POST['description']);
@@ -171,7 +166,6 @@ if (isset($_GET['id'])) {
         }
     }
 
-    // Si le formulaire est soumis pour suppression
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_task'])) {
         if ($taskManager->deleteTask()) {
             echo "<script>

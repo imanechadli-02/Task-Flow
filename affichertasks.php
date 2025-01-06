@@ -1,12 +1,11 @@
 <?php
-// Classe de base pour gérer la base de données
 class Database
 {
     private $host = "localhost";
     private $username = "root";
     private $password = "12345chadli";
     private $dbname = "taskflow_db";
-    protected $conn; // Connexion protégée pour être utilisée dans les classes enfants
+    protected $conn; 
 
     public function __construct()
     {
@@ -23,7 +22,6 @@ class Database
     }
 }
 
-// Classe User pour gérer les utilisateurs
 class User extends Database
 {
     private $id;
@@ -56,7 +54,6 @@ class User extends Database
     }
 }
 
-// Classe Task pour gérer les tâches
 class Task extends Database
 {
     private $title;
@@ -136,7 +133,6 @@ class Task extends Database
     }
 }
 
-// Fonction pour mapper les valeurs du statut
 function getStatusLabel($status)
 {
     $statusLabels = [
@@ -148,7 +144,6 @@ function getStatusLabel($status)
     return $statusLabels[$status] ?? $status;
 }
 
-// Gestion des requêtes
 $message = "";
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $task = new Task();
@@ -171,7 +166,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $task->closeConnection();
 }
 
-// Charger les utilisateurs et les tâches
 $user = new User();
 $users = $user->getAllUsers();
 
@@ -179,7 +173,6 @@ $task = new Task();
 $tasks = $task->getAllTasksWithUsers();
 $task->closeConnection();
 
-// Organiser les tâches par statut
 $tasksByStatus = ["todo" => [], "in_progress" => [], "done" => []];
 foreach ($tasks as $task) {
     $tasksByStatus[$task['status']][] = $task;

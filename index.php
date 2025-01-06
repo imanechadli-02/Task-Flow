@@ -1,14 +1,13 @@
 <?php
-// Classe pour gérer la base de données
 class Database
 {
     private $host = "localhost";
     private $username = "root";
-    private $password = "12345chadli"; // Modifiez selon votre configuration
+    private $password = "12345chadli"; 
     private $dbname = "taskflow_db";
     private $conn;
 
-    // Constructeur pour établir la connexion
+   
     public function __construct()
     {
         $this->conn = new mysqli($this->host, $this->username, $this->password, $this->dbname);
@@ -18,7 +17,6 @@ class Database
         }
     }
 
-    // Méthode pour insérer un utilisateur dans la base de données
     public function insertUser(User $user)
     {
         $stmt = $this->conn->prepare("INSERT INTO users (username, email) VALUES (?, ?)");
@@ -37,20 +35,17 @@ class Database
         }
     }
 
-    // Méthode pour fermer la connexion
     public function closeConnection()
     {
         $this->conn->close();
     }
 }
 
-// Classe User pour gérer les utilisateurs
 class User
 {
     private $username;
     private $email;
 
-    // Setter pour le nom d'utilisateur
     public function setUsername($username)
     {
         if (!empty($username)) {
@@ -60,13 +55,11 @@ class User
         }
     }
 
-    // Getter pour le nom d'utilisateur
     public function getUsername()
     {
         return $this->username;
     }
 
-    // Setter pour l'email
     public function setEmail($email)
     {
         if (filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -76,14 +69,12 @@ class User
         }
     }
 
-    // Getter pour l'email
     public function getEmail()
     {
         return $this->email;
     }
 }
 
-// Gestion du formulaire
 $message = "";
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
@@ -92,16 +83,18 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $user->setUsername($_POST['username']);
         $user->setEmail($_POST['email']);
 
-        $db = new Database(); // Connexion à la base de données
+        $db = new Database(); 
         $result = $db->insertUser($user);
 
         if ($result === true) {
-            $message = "<p style='color: green;'>Inscription réussie ! Bienvenue, " . $user->getUsername() . ".</p>";
+            header("Location: afficherTasks.php");
+            exit; 
         } else {
             $message = "<p style='color: red;'>Erreur : $result</p>";
         }
+        
 
-        $db->closeConnection(); // Fermer la connexion
+        $db->closeConnection(); 
     } catch (Exception $e) {
         $message = "<p style='color: red;'>" . $e->getMessage() . "</p>";
     }

@@ -1,5 +1,4 @@
 <?php
-// Classe de base pour la connexion à la base de données
 class Database
 {
     private $host = "localhost";
@@ -28,7 +27,6 @@ class Database
     }
 }
 
-// Classe Task avec encapsulation
 class Task
 {
     private $title;
@@ -46,7 +44,6 @@ class Task
         $this->setAssignedTo($assignedTo);
     }
 
-    // Getters et setters
     public function getTitle()
     {
         return $this->title;
@@ -111,7 +108,6 @@ class Task
         $this->assignedTo = $assignedTo;
     }
 
-    // Méthode pour insérer une tâche dans la base de données
     public function save(Database $db)
     {
         $conn = $db->getConnection();
@@ -130,7 +126,6 @@ class Task
     }
 }
 
-// Classe User pour gérer les utilisateurs
 class UserManager extends Database
 {
     public function getUsers()
@@ -140,7 +135,6 @@ class UserManager extends Database
     }
 }
 
-// Gestion des requêtes
 $message = "";
 try {
     if ($_SERVER["REQUEST_METHOD"] === "POST") {
@@ -151,7 +145,7 @@ try {
         $userId = intval($_POST['user_id']);
 
         if ($userId === 0) {
-            $userId = null; // Aucun assigné
+            $userId = null; 
         }
 
         $db = new Database();
@@ -165,7 +159,6 @@ try {
     $message = "<p style='color: red;'>Erreur : " . $e->getMessage() . "</p>";
 }
 
-// Charger les utilisateurs pour le champ "Assigné à"
 $userManager = new UserManager();
 $users = $userManager->getUsers();
 $userManager->closeConnection();
@@ -179,7 +172,6 @@ $userManager->closeConnection();
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TaskFlow - Ajouter une tâche</title>
     <style>
-        /* Styles */
         body {
             font-family: Arial, sans-serif;
             margin: 0;

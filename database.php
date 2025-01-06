@@ -3,11 +3,10 @@ class Database
 {
     private $host = "localhost";
     private $username = "root";
-    private $password = "12345chadli"; // Modifiez selon votre configuration
+    private $password = "12345chadli"; 
     private $dbname = "taskflow_db";
     private $conn;
 
-    // Constructeur pour établir la connexion
     public function __construct()
     {
         $this->conn = new mysqli($this->host, $this->username, $this->password, $this->dbname);
@@ -17,7 +16,6 @@ class Database
         }
     }
 
-    // Méthode pour insérer un utilisateur dans la base de données
     public function insertUser(User $user)
     {
         $stmt = $this->conn->prepare("INSERT INTO users (username, email) VALUES (?, ?)");
@@ -36,7 +34,6 @@ class Database
         }
     }
 
-    // Méthode pour fermer la connexion
     public function closeConnection()
     {
         $this->conn->close();
